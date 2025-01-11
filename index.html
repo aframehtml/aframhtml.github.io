@@ -6,14 +6,14 @@
   <title>A-Frame Scene</title>
   <script src="https://aframe.io/releases/0.7.0/aframe.min.js"></script>
   <script src="https://cdn.rawgit.com/delapuente/aframe-sharedspace-component/master/dist/aframe-sharedspace-component.min.js"></script>
-  <script src="https://rawgit.com/feiss/aframe-environment-component/master/dist/aframe-environment-component.min.js"></script>
+  <script src="https://rawgit.com/feiss/aframe-environment-component/master/d
+      --button-bg-color: #444;ist/aframe-environment-component.min.js"></script>
   <style>
     :root {
-      --bg-color: linear-gradient(135deg, #007bff, #6a11cb);
+      --bg-color: #333;
       --text-color: white;
-      --button-bg-color: #ffffff;
-      --button-text-color: #007bff;
-      --button-hover-bg-color: #007bff;
+      --button-text-color: white;
+      --button-hover-bg-color: #555;
       --button-hover-text-color: white;
     }
 
@@ -77,36 +77,19 @@
       transform: scale(1.1);
     }
 
-    .start-screen select {
+    .start-screen select, .start-screen input {
       padding: 10px;
       font-size: 1rem;
       border-radius: 8px;
       margin-top: 20px;
       cursor: pointer;
+      background-color: #444;
+      color: white;
+      border: none;
     }
 
-    #colorSliderContainer {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 3;
-    }
-
-    #colorSlider {
-      width: 300px;
-    }
-
-    #heightSliderContainer {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 3;
-    }
-
-    #heightSlider {
-      width: 300px;
+    .start-screen select {
+      width: 200px;
     }
 
     #objectSpawnerMenu {
@@ -145,6 +128,21 @@
     #objectSpawnerMenu button:hover {
       background-color: #0056b3;
     }
+
+    .camera-settings {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+      flex-direction: column;
+    }
+
+    .camera-settings label {
+      font-size: 1rem;
+    }
+
+    .camera-settings input {
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -163,37 +161,23 @@
       <option value="snow">Snow</option>
     </select>
 
-    <div id="heightSliderContainer">
-      <label for="heightSlider">Adjust Camera Height:</label>
-      <input type="range" id="heightSlider" min="1.0" max="3.0" step="0.1" value="1.6"/>
-    </div>
+    <div class="camera-settings">
+      <label for="fovSlider">Field of View:</label>
+      <input type="range" id="fovSlider" min="60" max="120" value="80" />
 
-    <div id="colorSliderContainer">
-      <label for="colorSlider">Change Theme Color:</label>
-      <input type="color" id="colorSlider" />
-    </div>
-  </div>
+      <label for="speedSlider">Camera Movement Speed:</label>
+      <input type="range" id="speedSlider" min="0.1" max="5" value="1" step="0.1" />
 
-  <div id="objectSpawnerMenu">
-    <label for="objectType">Object Type:</label>
-    <select id="objectType">
-      <option value="sphere">Sphere</option>
-      <option value="box">Box</option>
-      <option value="cylinder">Cylinder</option>
-    </select>
-    <br>
-    <label for="spawnSpeed">Spawn Speed (ms):</label>
-    <input type="number" id="spawnSpeed" value="2000" min="500" max="5000">
-    <br>
-    <button id="startSpawning">Start Spawning</button>
-    <button id="stopSpawning">Stop Spawning</button>
+      <label for="heightSlider">Camera Height:</label>
+      <input type="range" id="heightSlider" min="1.0" max="3.0" step="0.1" value="1.6" />
+    </div>
   </div>
 
   <div id="sceneContainer" style="display: none;">
     <a-scene>
       <a-entity id="environment" environment="preset: forest"></a-entity>
       <a-entity id="objectSpawner"></a-entity>
-      <a-camera position="0 1.6 0">
+      <a-camera position="0 1.6 0" id="camera">
         <a-entity cursor="fuse: true;" position="0 0 -1" geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03" material="color: white;"></a-entity>
       </a-camera>
     </a-scene>
@@ -202,43 +186,37 @@
   <script>
     const startButton = document.getElementById('startButton');
     const aboutButton = document.getElementById('aboutButton');
-    const colorSlider = document.getElementById('colorSlider');
+    const fovSlider = document.getElementById('fovSlider');
+    const speedSlider = document.getElementById('speedSlider');
     const heightSlider = document.getElementById('heightSlider');
     const mapSelector = document.getElementById('mapSelector');
     const startScreen = document.getElementById('startScreen');
     const sceneContainer = document.getElementById('sceneContainer');
     const environment = document.getElementById('environment');
     const objectSpawner = document.getElementById('objectSpawner');
-    const objectSpawnerMenu = document.getElementById('objectSpawnerMenu');
-    const objectType = document.getElementById('objectType');
-    const spawnSpeedInput = document.getElementById('spawnSpeed');
-    const startSpawningButton = document.getElementById('startSpawning');
-    const stopSpawningButton = document.getElementById('stopSpawning');
-    let spawnInterval;
+    const camera = document.getElementById('camera');
+    let cameraSpeed = 1;
 
     startButton.addEventListener('click', () => {
       startScreen.style.display = 'none';
       sceneContainer.style.display = 'block';
-      objectSpawnerMenu.style.display = 'block';
     });
 
     aboutButton.addEventListener('click', () => {
       alert('This experience was created by Lemon to demonstrate A-Frame capabilities.');
     });
 
-    colorSlider.addEventListener('input', (event) => {
-      const color = event.target.value;
-      document.documentElement.style.setProperty('--bg-color', color);
-      document.documentElement.style.setProperty('--button-bg-color', color);
-      document.documentElement.style.setProperty('--text-color', '#fff');
-      document.documentElement.style.setProperty('--button-text-color', '#fff');
-      document.documentElement.style.setProperty('--button-hover-bg-color', '#fff');
-      document.documentElement.style.setProperty('--button-hover-text-color', color);
+    fovSlider.addEventListener('input', (event) => {
+      const fov = event.target.value;
+      camera.setAttribute('camera', 'fov', fov);
+    });
+
+    speedSlider.addEventListener('input', (event) => {
+      cameraSpeed = event.target.value;
     });
 
     heightSlider.addEventListener('input', (event) => {
       const newHeight = event.target.value;
-      const camera = document.querySelector('a-camera');
       camera.setAttribute('position', `0 ${newHeight} 0`);
     });
 
@@ -247,32 +225,40 @@
       environment.setAttribute('environment', `preset: ${selectedMap}`);
     });
 
-    startSpawningButton.addEventListener('click', () => {
-      const speed = parseInt(spawnSpeedInput.value);
-      spawnObjects(speed);
+    // Add camera movement logic based on the speed setting
+    document.addEventListener('keydown', (event) => {
+      const cameraPosition = camera.getAttribute('position');
+      const speed = cameraSpeed * 0.1;
+
+      if (event.key === 'w') {
+        camera.setAttribute('position', {
+          x: cameraPosition.x,
+          y: cameraPosition.y,
+          z: cameraPosition.z - speed
+        });
+      }
+      if (event.key === 's') {
+        camera.setAttribute('position', {
+          x: cameraPosition.x,
+          y: cameraPosition.y,
+          z: cameraPosition.z + speed
+        });
+      }
+      if (event.key === 'a') {
+        camera.setAttribute('position', {
+          x: cameraPosition.x - speed,
+          y: cameraPosition.y,
+          z: cameraPosition.z
+        });
+      }
+      if (event.key === 'd') {
+        camera.setAttribute('position', {
+          x: cameraPosition.x + speed,
+          y: cameraPosition.y,
+          z: cameraPosition.z
+        });
+      }
     });
-
-    stopSpawningButton.addEventListener('click', () => {
-      clearInterval(spawnInterval);
-    });
-
-    function spawnObjects(speed) {
-      const objectColors = ['#FF5733', '#33FF57', '#3357FF', '#FF33A6', '#FFC300'];
-      objectSpawner.innerHTML = '';
-      spawnInterval = setInterval(() => {
-        const randomX = Math.random() * 10 - 5;
-        const randomY = Math.random() * 2 + 1;
-        const randomZ = Math.random() * 10 - 5;
-        const randomColor = objectColors[Math.floor(Math.random() * objectColors.length)];
-        const selectedObjectType = objectType.value;
-
-        const object = document.createElement(`a-${selectedObjectType}`);
-        object.setAttribute('position', `${randomX} ${randomY} ${randomZ}`);
-        object.setAttribute('color', randomColor);
-
-        objectSpawner.appendChild(object);
-      }, speed);
-    }
   </script>
 </body>
 </html>
